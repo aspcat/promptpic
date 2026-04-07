@@ -72,7 +72,7 @@ async function generateCustomModel(
     let bodyTemplate = config.bodyTemplate;
     bodyTemplate = bodyTemplate.replace(/\{\{prompt\}\}/g, prompt);
 
-    let body: unknown;
+    let body: Record<string, unknown>;
     try {
       body = JSON.parse(bodyTemplate);
 
