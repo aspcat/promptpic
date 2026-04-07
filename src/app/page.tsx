@@ -103,7 +103,36 @@ export default function Home() {
   useEffect(() => {
     setCustomModels(loadCustomModels());
     setCustomProviders(loadCustomProviders());
-  }, []);
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of items) {
+        if (item.type.startsWith("image/")) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (!file) return;
+
+          const maxSize = 10 * 1024 * 1024;
+          if (file.size > maxSize) {
+            alert(t("alert.imageTooLarge"));
+            return;
+          }
+
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const base64 = event.target?.result as string;
+            setReferenceImages((prev) => [...prev, base64]);
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    };
+
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, [t]);
 
   const allModels = customModels;
   const allProviders = customProviders;
@@ -507,7 +536,10 @@ export default function Home() {
         {mode === "edit" && (
           <section className="mb-8">
             <h3 className="text-sm font-medium text-gray-700 mb-1">{t("referenceImages")}</h3>
-            <p className="text-xs text-gray-500 mb-2">{t("referenceImagesTip")}</p>
+            <div className="flex gap-4 text-xs text-gray-500 mb-2">
+              <span>{t("referenceImagesTip")}</span>
+              <span>{t("pasteImageTip")}</span>
+            </div>
             <div className="flex flex-wrap gap-3">
               {referenceImages.map((img, index) => (
                 <div key={index} className="relative w-24 h-24 border border-gray-200 rounded-lg overflow-hidden">
