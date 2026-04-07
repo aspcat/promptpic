@@ -120,7 +120,13 @@ export default function Home() {
     const files = e.target.files;
     if (!files) return;
 
+    const maxSize = 10 * 1024 * 1024;
+
     Array.from(files).forEach((file) => {
+      if (file.size > maxSize) {
+        alert(t("alert.imageTooLarge"));
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (event) => {
         const base64 = event.target?.result as string;
@@ -146,6 +152,17 @@ export default function Home() {
       return;
     }
 
+    if (mode === "edit" && referenceImages.length === 0) {
+      setError(t("error.noReferenceImage"));
+      return;
+    }
+
+    const totalImageSize = referenceImages.reduce((acc, img) => acc + img.length, 0);
+    if (totalImageSize > 10 * 1024 * 1024) {
+      setError(t("error.imageTooLarge"));
+      return;
+    }
+
     setIsGenerating(true);
     setError(null);
     setResults([]);
@@ -165,7 +182,15 @@ export default function Home() {
         }),
       });
 
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        setError(`服务器返回格式错误: ${text.slice(0, 200)}`);
+        setIsGenerating(false);
+        return;
+      }
 
       if (!data.success) {
         setError(data.error || t("error.generationFailed"));
@@ -179,7 +204,7 @@ export default function Home() {
     } finally {
       setIsGenerating(false);
     }
-  }, [prompt, selectedModels, customModels]);
+  }, [prompt, selectedModels, customModels, mode, referenceImages]);
 
   const handleDownload = (imageUrl: string) => {
     window.open(imageUrl, "_blank");
@@ -481,7 +506,8 @@ export default function Home() {
 
         {mode === "edit" && (
           <section className="mb-8">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">{t("referenceImages")}</h3>
+            <h3 className="text-sm font-medium text-gray-700 mb-1">{t("referenceImages")}</h3>
+            <p className="text-xs text-gray-500 mb-2">{t("referenceImagesTip")}</p>
             <div className="flex flex-wrap gap-3">
               {referenceImages.map((img, index) => (
                 <div key={index} className="relative w-24 h-24 border border-gray-200 rounded-lg overflow-hidden">
