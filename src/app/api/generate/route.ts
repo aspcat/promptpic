@@ -5,6 +5,7 @@ interface GenerationResult {
   status: "success" | "error";
   imageUrl?: string;
   generationTime?: number;
+  usage?: Record<string, unknown>;
   error?: string;
 }
 
@@ -19,6 +20,7 @@ interface CustomModelConfig {
   headers: string;
   bodyTemplate: string;
   responseImagePath: string;
+  responseUsagePath?: string;
 }
 
 function getNestedValue(obj: unknown, path: string): unknown {
@@ -143,11 +145,17 @@ async function generateCustomModel(
       };
     }
 
+    let usage: Record<string, unknown> | undefined;
+    if (config.responseUsagePath) {
+      usage = getNestedValue(data, config.responseUsagePath) as Record<string, unknown>;
+    }
+
     return {
       model: config.id,
       status: "success",
       imageUrl,
       generationTime: Date.now() - startTime,
+      usage,
     };
   } catch (error) {
     return {

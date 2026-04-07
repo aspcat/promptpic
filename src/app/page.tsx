@@ -16,6 +16,7 @@ interface CustomModelConfig {
   headers: string;
   bodyTemplate: string;
   responseImagePath: string;
+  responseUsagePath?: string;
 }
 
 interface GenerationResult {
@@ -23,6 +24,7 @@ interface GenerationResult {
   status: "success" | "error";
   imageUrl?: string;
   generationTime?: number;
+  usage?: Record<string, unknown>;
   error?: string;
 }
 
@@ -97,6 +99,7 @@ export default function Home() {
     headers: "{}",
     bodyTemplate: JSON.stringify({ prompt: "{{prompt}}", n: 1 }, null, 2),
     responseImagePath: "output.image_url",
+    responseUsagePath: "",
   });
   const [selectedProviderId, setSelectedProviderId] = useState<string>("");
 
@@ -255,6 +258,7 @@ export default function Home() {
       headers: "{}",
       bodyTemplate: JSON.stringify({ prompt: "{{prompt}}", n: 1 }, null, 2),
       responseImagePath: "output.image_url",
+      responseUsagePath: "",
     });
     setShowAddModal(true);
   };
@@ -271,6 +275,7 @@ export default function Home() {
       headers: model.headers,
       bodyTemplate: model.bodyTemplate,
       responseImagePath: model.responseImagePath,
+      responseUsagePath: model.responseUsagePath || "",
     });
     setShowAddModal(true);
   };
@@ -312,6 +317,7 @@ export default function Home() {
       headers: formData.headers,
       bodyTemplate: formData.bodyTemplate,
       responseImagePath: formData.responseImagePath,
+      responseUsagePath: formData.responseUsagePath || undefined,
     };
 
     let updatedModels;
@@ -794,6 +800,11 @@ export default function Home() {
                           {t("generationTime")}: {result.generationTime}{t("ms")}
                         </div>
                       )}
+                      {result.usage && (
+                        <div className="text-sm text-gray-500 mt-1">
+                          {t("totalTokens")}: {String(result.usage.total_tokens || result.usage.output_tokens || "-")}
+                        </div>
+                      )}
                       <button
                         onClick={() => handleDownload(result.imageUrl!)}
                         className="mt-3 px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 transition-colors"
@@ -933,6 +944,18 @@ export default function Home() {
                   value={formData.responseImagePath}
                   onChange={(e) => setFormData({ ...formData, responseImagePath: e.target.value })}
                   placeholder="output.image_url"
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {t("responseUsagePath")} ({t("optional")})
+                </label>
+                <input
+                  type="text"
+                  value={formData.responseUsagePath}
+                  onChange={(e) => setFormData({ ...formData, responseUsagePath: e.target.value })}
+                  placeholder="output.usage.total_tokens"
                   className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                 />
               </div>

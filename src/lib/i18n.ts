@@ -40,6 +40,8 @@ export const translations = {
     requestHeaders: "请求头 (JSON)",
     requestBody: "请求体 (JSON)",
     responseImagePath: "响应图片路径",
+    responseUsagePath: "响应用量路径",
+    optional: "可选",
     promptPlaceholderTip: "请使用 {{prompt}} 作为提示词占位符",
     save: "保存",
     cancel: "取消",
@@ -71,6 +73,7 @@ export const translations = {
     requiresUserKey: "需要用户填 Key",
     noModelsYet: "暂无自定义模型，请添加或导入配置",
     generationTime: "生成耗时",
+    totalTokens: "total_tokens",
     ms: "ms",
   },
   en: {
@@ -114,6 +117,8 @@ export const translations = {
     requestHeaders: "Request Headers (JSON)",
     requestBody: "Request Body (JSON)",
     responseImagePath: "Response Image Path",
+    responseUsagePath: "Response Usage Path",
+    optional: "optional",
     promptPlaceholderTip: "Use {{prompt}} as prompt placeholder",
     save: "Save",
     cancel: "Cancel",
@@ -145,6 +150,7 @@ export const translations = {
     requiresUserKey: "Requires User Key",
     noModelsYet: "No custom models yet. Add or import a configuration.",
     generationTime: "Generation time",
+    totalTokens: "total_tokens",
     ms: "ms",
   },
 };
