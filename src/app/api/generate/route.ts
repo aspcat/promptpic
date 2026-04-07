@@ -37,7 +37,9 @@ function getNestedValue(obj: unknown, path: string): unknown {
 
 async function generateCustomModel(
   prompt: string,
-  config: CustomModelConfig
+  config: CustomModelConfig,
+  mode: "generate" | "edit" = "generate",
+  referenceImages?: string[]
 ): Promise<GenerationResult> {
   const startTime = Date.now();
   try {
@@ -73,6 +75,24 @@ async function generateCustomModel(
     let body: unknown;
     try {
       body = JSON.parse(bodyTemplate);
+
+      if (mode === "edit" && referenceImages && referenceImages.length > 0) {
+        const imageContents = referenceImages.map((img) => ({ image: img }));
+        body = {
+          ...body,
+          input: {
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { text: prompt },
+                  ...imageContents,
+                ],
+              },
+            ],
+          },
+        };
+      }
     } catch {
       return {
         model: config.id,
@@ -134,7 +154,7 @@ async function generateCustomModel(
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { prompt, models: selectedModels, customModels } = body;
+    const { prompt, models: selectedModels, customModels, mode, referenceImages } = body;
 
     if (!prompt || typeof prompt !== "string") {
       return NextResponse.json(
@@ -161,7 +181,12 @@ export async function POST(request: NextRequest) {
     for (const modelId of selectedModels) {
       if (customModelMap.has(modelId)) {
         const config = customModelMap.get(modelId)!;
-        generationPromises.push(generateCustomModel(prompt, config));
+        generationPromises.push(generateCustomModel(
+          prompt,
+          config,
+          mode || "generate",
+          referenceImages
+        ));
       } else {
         generationPromises.push(
           Promise.resolve({

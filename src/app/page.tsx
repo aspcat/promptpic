@@ -69,6 +69,8 @@ function saveCustomProviders(providers: CustomProvider[]) {
 
 export default function Home() {
   const { t, lang, setLang } = useLanguage();
+  const [mode, setMode] = useState<"generate" | "edit">("generate");
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [prompt, setPrompt] = useState("");
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -114,6 +116,25 @@ export default function Home() {
     );
   };
 
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    Array.from(files).forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target?.result as string;
+        setReferenceImages((prev) => [...prev, base64]);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setReferenceImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) {
       setError(t("pleaseEnterPrompt"));
@@ -139,6 +160,8 @@ export default function Home() {
           prompt: prompt.trim(),
           models: selectedModels,
           customModels: customModels,
+          mode,
+          referenceImages: mode === "edit" ? referenceImages : undefined,
         }),
       });
 
@@ -431,13 +454,68 @@ export default function Home() {
       </header>
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+        <section className="mb-4">
+          <div className="flex gap-2 p-1 bg-gray-100 rounded-lg w-fit">
+            <button
+              onClick={() => setMode("generate")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                mode === "generate"
+                  ? "bg-white text-primary shadow"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              {t("modeGenerate")}
+            </button>
+            <button
+              onClick={() => setMode("edit")}
+              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                mode === "edit"
+                  ? "bg-white text-primary shadow"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              {t("modeEdit")}
+            </button>
+          </div>
+        </section>
+
+        {mode === "edit" && (
+          <section className="mb-8">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">{t("referenceImages")}</h3>
+            <div className="flex flex-wrap gap-3">
+              {referenceImages.map((img, index) => (
+                <div key={index} className="relative w-24 h-24 border border-gray-200 rounded-lg overflow-hidden">
+                  <img src={img} alt={`Reference ${index + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => handleRemoveImage(index)}
+                    className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary hover:bg-gray-50">
+                <span className="text-gray-400 text-xs">+</span>
+                <span className="text-gray-400 text-xs">{t("uploadReferenceImages")}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </section>
+        )}
+
         <section className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-3">{t("promptLabel")}</h2>
           <div className="relative">
             <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder={t("promptPlaceholder")}
+              placeholder={mode === "edit" ? t("promptPlaceholderEdit") : t("promptPlaceholder")}
               className="w-full h-32 p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900 placeholder-gray-400"
               maxLength={2000}
             />
