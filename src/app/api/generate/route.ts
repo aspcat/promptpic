@@ -70,34 +70,41 @@ async function generateCustomModel(
     }
 
     let bodyTemplate = config.bodyTemplate;
-    bodyTemplate = bodyTemplate.replace(/\{\{prompt\}\}/g, prompt);
+    const escapedPrompt = prompt
+      .replace(/\\/g, "\\\\")
+      .replace(/"/g, '\\"')
+      .replace(/\n/g, "\\n")
+      .replace(/\r/g, "\\r")
+      .replace(/\t/g, "\\t");
+    bodyTemplate = bodyTemplate.replace(/\{\{prompt\}\}/g, escapedPrompt);
 
     let body: Record<string, unknown>;
     try {
       body = JSON.parse(bodyTemplate);
-
-      if (mode === "edit" && referenceImages && referenceImages.length > 0) {
-        const imageContents = referenceImages.map((img) => ({ image: img }));
-        body = {
-          ...body,
-          input: {
-            messages: [
-              {
-                role: "user",
-                content: [
-                  { text: prompt },
-                  ...imageContents,
-                ],
-              },
-            ],
-          },
-        };
-      }
-    } catch {
+    } catch (e) {
+      console.error(`[${config.name}] Body 解析失败:`, e);
       return {
         model: config.id,
         status: "error",
-        error: "请求体格式错误",
+        error: `请求体格式错误: ${e instanceof Error ? e.message : "未知错误"}`,
+      };
+    }
+
+    if (mode === "edit" && referenceImages && referenceImages.length > 0) {
+      const imageContents = referenceImages.map((img) => ({ image: img }));
+      body = {
+        ...body,
+        input: {
+          messages: [
+            {
+              role: "user",
+              content: [
+                { text: prompt },
+                ...imageContents,
+              ],
+            },
+          ],
+        },
       };
     }
 
