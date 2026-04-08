@@ -147,7 +147,13 @@ async function generateCustomModel(
 
     let usage: Record<string, unknown> | undefined;
     if (config.responseUsagePath) {
-      usage = getNestedValue(data, config.responseUsagePath) as Record<string, unknown>;
+      const usageValue = getNestedValue(data, config.responseUsagePath);
+      if (usageValue && typeof usageValue === "object" && !Array.isArray(usageValue)) {
+        usage = usageValue as Record<string, unknown>;
+      } else if (typeof usageValue === "number") {
+        usage = { total_tokens: usageValue };
+      }
+      console.log(`[${config.name}] Usage from path '${config.responseUsagePath}':`, usage);
     }
 
     return {

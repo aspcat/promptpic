@@ -30,6 +30,7 @@ interface GenerationResult {
 
 const CUSTOM_MODELS_KEY = "promptpic_custom_models";
 const CUSTOM_PROVIDERS_KEY = "promptpic_custom_providers";
+const SETTINGS_KEY = "promptpic_settings";
 
 interface CustomProvider {
   id: string;
@@ -37,6 +38,10 @@ interface CustomProvider {
   apiEndpoint: string;
   apiKey: string;
   headers: string;
+}
+
+interface Settings {
+  compressImages: boolean;
 }
 
 function loadCustomModels(): CustomModelConfig[] {
@@ -67,6 +72,56 @@ function saveCustomModels(customModels: CustomModelConfig[]) {
 
 function saveCustomProviders(providers: CustomProvider[]) {
   localStorage.setItem(CUSTOM_PROVIDERS_KEY, JSON.stringify(providers));
+}
+
+function loadSettings(): Settings {
+  if (typeof window === "undefined") return { compressImages: true };
+  const stored = localStorage.getItem(SETTINGS_KEY);
+  if (!stored) return { compressImages: true };
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return { compressImages: true };
+  }
+}
+
+function saveSettings(settings: Settings) {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function compressImage(file: File, maxWidth: number = 1920): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = document.createElement("img");
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          reject(new Error("Failed to get canvas context"));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const base64 = canvas.toDataURL("image/jpeg", 0.85);
+        resolve(base64);
+      };
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function Home() {
@@ -102,14 +157,19 @@ export default function Home() {
     responseUsagePath: "",
   });
   const [selectedProviderId, setSelectedProviderId] = useState<string>("");
+  const [settings, setSettings] = useState<Settings>({ compressImages: true });
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   useEffect(() => {
     setCustomModels(loadCustomModels());
     setCustomProviders(loadCustomProviders());
+    setSettings(loadSettings());
 
-    const handlePaste = (e: ClipboardEvent) => {
+    const handlePaste = async (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
       if (!items) return;
+
+      const currentSettings = loadSettings();
 
       for (const item of items) {
         if (item.type.startsWith("image/")) {
@@ -123,19 +183,29 @@ export default function Home() {
             return;
           }
 
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            const base64 = event.target?.result as string;
+          try {
+            let base64: string;
+            if (currentSettings.compressImages) {
+              base64 = await compressImage(file);
+            } else {
+              base64 = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => resolve(event.target?.result as string);
+                reader.onerror = () => reject(new Error("Failed to read file"));
+                reader.readAsDataURL(file);
+              });
+            }
             setReferenceImages((prev) => [...prev, base64]);
-          };
-          reader.readAsDataURL(file);
+          } catch (err) {
+            console.error("Image processing error:", err);
+          }
         }
       }
     };
 
     document.addEventListener("paste", handlePaste);
     return () => document.removeEventListener("paste", handlePaste);
-  }, [t]);
+  }, [t, settings.compressImages]);
 
   const allModels = customModels;
   const allProviders = customProviders;
@@ -148,24 +218,35 @@ export default function Home() {
     );
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
 
     const maxSize = 10 * 1024 * 1024;
 
-    Array.from(files).forEach((file) => {
+    for (const file of Array.from(files)) {
       if (file.size > maxSize) {
         alert(t("alert.imageTooLarge"));
-        return;
+        continue;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string;
+
+      try {
+        let base64: string;
+        if (settings.compressImages) {
+          base64 = await compressImage(file);
+        } else {
+          base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (event) => resolve(event.target?.result as string);
+            reader.onerror = () => reject(new Error("Failed to read file"));
+            reader.readAsDataURL(file);
+          });
+        }
         setReferenceImages((prev) => [...prev, base64]);
-      };
-      reader.readAsDataURL(file);
-    });
+      } catch (err) {
+        console.error("Image processing error:", err);
+      }
+    }
     e.target.value = "";
   };
 
@@ -491,6 +572,15 @@ export default function Home() {
           <h1 className="text-2xl font-bold text-gray-900">PromptPic</h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-500">{t("appSubtitle")}</span>
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title={t("settings")}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+              </svg>
+            </button>
             <div className="flex items-center gap-1 border border-gray-300 rounded-lg p-1">
               <button
                 onClick={() => setLang("zh")}
@@ -1046,6 +1136,43 @@ export default function Home() {
                 className="px-4 py-2 text-white bg-primary hover:bg-primaryhover rounded-lg"
               >
                 {t("save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">{t("settings")}</h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium text-gray-900">{t("compressImages")}</div>
+                  <div className="text-sm text-gray-500">{t("compressImagesTip")}</div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.compressImages}
+                    onChange={(e) => {
+                      const newSettings = { ...settings, compressImages: e.target.checked };
+                      setSettings(newSettings);
+                      saveSettings(newSettings);
+                    }}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+            </div>
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="px-4 py-2 text-white bg-primary hover:bg-primaryhover rounded-lg"
+              >
+                {t("done")}
               </button>
             </div>
           </div>

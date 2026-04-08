@@ -2,6 +2,10 @@ export const translations = {
   zh: {
     appName: "PromptPic",
     appSubtitle: "AI 生图对比工具",
+    settings: "设置",
+    compressImages: "启用图片压缩",
+    compressImagesTip: "自动压缩超过 1920px 的图片",
+    done: "完成",
     modeGenerate: "文生图",
     modeEdit: "图生图",
     uploadReferenceImages: "上传参考图片",
@@ -79,6 +83,10 @@ export const translations = {
   en: {
     appName: "PromptPic",
     appSubtitle: "AI Image Generation Comparison Tool",
+    settings: "Settings",
+    compressImages: "Enable Image Compression",
+    compressImagesTip: "Auto compress images over 1920px",
+    done: "Done",
     modeGenerate: "Text-to-Image",
     modeEdit: "Image-to-Image",
     uploadReferenceImages: "Upload Reference Images",
